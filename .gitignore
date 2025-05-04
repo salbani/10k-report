@@ -1,0 +1,4 @@
+.venv/
+output/
+sec-edgar-filings/
+.DS_Store
