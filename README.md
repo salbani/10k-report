@@ -55,6 +55,6 @@ src/
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-## Author
-Simon Albani
+## Authors
+Simon Albani \
 Paul Tillen
