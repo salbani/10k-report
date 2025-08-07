@@ -1,0 +1,18 @@
+import os
+from report_analyzer import ReportAnalyzer
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.abspath(os.path.join(current_dir, ".."))
+data_dir = os.path.join(project_dir, "data")
+output_dir = os.path.join(project_dir, "output")
+reports_dir = os.path.join(project_dir, "sec-reports/")
+
+
+report_analyzer = ReportAnalyzer(data_dir, reports_dir, output_dir)
+
+result = report_analyzer.analyze_report(
+    "/Users/simon/Workspace/10k-report/sec-reports/sec-edgar-filings/0000002488/10-K/0001193125-13-069422/full-submission.txt",
+    True,
+)
+
+print(result)
