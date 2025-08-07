@@ -3,6 +3,7 @@ import html
 import json
 import os
 import re
+import logging
 import pandas as pd
 
 from company import Company
@@ -14,6 +15,7 @@ class ReportAnalyzer:
         self.reports_dir = reports_dir
         self.output_dir = output_dir
         self.results: list[CompanyAnalyzeResults]
+        self.logger = logging.getLogger("sec_analyzer")
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -29,10 +31,12 @@ class ReportAnalyzer:
             )
 
     def analyze(self, companies: list[Company]) -> list["CompanyAnalyzeResults"]:
+        self.logger.info(f"Starting analysis of {len(companies)} companies")
         with ProcessPoolExecutor() as executor:
             self.results = list(
                 filter(None, executor.map(self.analyze_company, companies))
             )
+        self.logger.info(f"Analysis completed for {len(self.results)} companies")
 
         return self.results
 
@@ -56,18 +60,18 @@ class ReportAnalyzer:
 
     def save_results_to_excel(self):
         df = self._results_to_df()
-        df.to_excel(
-            os.path.join(self.output_dir, "sec_report_analysis_results.xlsx"), index=False
-        )
+        excel_path = os.path.join(self.output_dir, "sec_report_analysis_results.xlsx")
+        df.to_excel(excel_path, index=False)
+        self.logger.info(f"Results saved to Excel: {excel_path}")
 
     def save_results_to_csv(self):
         df = self._results_to_df()
-        df.to_csv(
-            os.path.join(self.output_dir, "sec_report_analysis_results.csv"), index=False
-        )
+        csv_path = os.path.join(self.output_dir, "sec_report_analysis_results.csv")
+        df.to_csv(csv_path, index=False)
+        self.logger.info(f"Results saved to CSV: {csv_path}")
 
     def analyze_company(self, company: Company) -> "CompanyAnalyzeResults":
-        print(f"Processing {company.name} ({company.cik})\n")
+        self.logger.info(f"Processing {company.name} ({company.cik})")
         company.download_reports(self.reports_dir, "2013-01-01")
 
         company_results = CompanyAnalyzeResults(company)
@@ -76,15 +80,16 @@ class ReportAnalyzer:
             try:
                 report_result = self.analyze_report(report_path)
             except ValueError as e:
-                error_message = f"{company.name} Skipping report {report_path} due to error: {e}\n"
-                print(error_message.strip())
-                
-                # Save error to log file
-                error_log_path = os.path.join(self.output_dir, "analysis_errors.txt")
-                with open(error_log_path, "a", encoding="utf-8") as error_file:
-                    error_file.write(error_message)
+                error_message = f"{company.name} Skipping report {report_path} due to error: {e}"
+                self.logger.error(error_message)
+                continue
+            except Exception as e:
+                error_message = f"{company.name} Unexpected error processing {report_path}: {e}"
+                self.logger.error(error_message)
                 continue
             company_results.add_report_result(report_result)
+
+        company.delete_reports()
 
         return company_results
 
@@ -117,7 +122,7 @@ class ReportAnalyzer:
                 with open(unescaped_txt_path, "w", encoding="utf-8") as output_file:
                     output_file.write(text)
 
-            relevant_text = self._filter_relevant_text(text, debug_print=save_debug_text)
+            relevant_text = self._filter_relevant_text(text)
             if not relevant_text:
                 raise ValueError(f"No relevant section found in file")
             
@@ -132,25 +137,25 @@ class ReportAnalyzer:
 
             return ReportAnalyzeResult(year, accession_number, word_count, keyword_frequencies)
 
-    def _filter_relevant_text(self, text: str, min_length: int = 1000, debug_print = False) -> str | None:
+    def _filter_relevant_text(self, text: str, min_length: int = 2500) -> str | None:
         start_patterns = [
-            r"item1[\.:-](descriptionof)?business[\.:-]?\n",
-            r"item1[\.:-](descriptionof)?business[\.:-]?",
+            r"item:?1:?(descriptionof)?business:?\n",
+            r"item:?1:?(descriptionof)?business:?",
             
         ]
         end_patterns = [
-            r"item1a[\.:-]riskfactors[\.:-]?\n",
-            r"item1a[\.:-]riskfactors[\.:-]?",
+            r"item:?1:?a:?riskfactors:?\n",
+            r"item:?1:?a:?riskfactors:?",
         ]
         
         for start_pattern in start_patterns:
-            start_match = self._search_pattern(text, start_pattern, debug_print)
+            start_match = self._search_pattern(text, start_pattern)
             if start_match is None:
                 continue
 
             for end_pattern in end_patterns:
                 
-                end_match = self._search_pattern(text[start_match.end():], end_pattern, debug_print)
+                end_match = self._search_pattern(text[start_match.end():], end_pattern)
                 if end_match is None:
                     continue
 
@@ -160,12 +165,13 @@ class ReportAnalyzer:
         
         return None
 
-    def _search_pattern(self, text: str, pattern: str, debug_print = False) -> None | re.Match[str]:
+    def _search_pattern(self, text: str, pattern: str) -> None | re.Match[str]:
         """Search for pattern in text and return the start position, or None if not found."""
         extended_pattern = r"".join(c + r"\s*" if (c.isalpha() or c.isnumeric()) else c for c in pattern)
+        extended_pattern = re.sub(r':', r'[\.:‒–—―‐‑⁃−﹣－\-]', extended_pattern)
         extended_pattern = re.sub(r'([\)\]])(\?)?', r'\1\2\\s*', extended_pattern)
-        if debug_print:
-            print(f"Searching for pattern: {extended_pattern}")
+
+        self.logger.debug(f"Searching for pattern: {extended_pattern}")
         matches = list(re.finditer(extended_pattern, text, re.DOTALL))
         
         if len(matches) == 0:

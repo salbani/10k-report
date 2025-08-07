@@ -1,11 +1,15 @@
 import os
+import shutil
 import time
 import fcntl
 import tempfile
+import logging
 from typing import Any
 
 from sec_edgar_downloader import Downloader  # type: ignore
 
+report_folder_name = "10-K"
+company_name = "sec-edgar-filings"
 
 class Company:
     # Process-safe rate limiting using file locking
@@ -13,23 +17,21 @@ class Company:
     _lock_file_path = os.path.join(tempfile.gettempdir(), "sec_download_lock.txt")
     
     def __init__(self, name: str, cik: str):
+        self.company_reports_dir: str | None = None
         self.name = name
         self.cik = cik
         self.report_paths: list[str] = []
+        self.logger = logging.getLogger("sec_analyzer")
 
     def download_reports(self, reports_dir: str, after_date: str):
-        report_folder_name = "10-K"
-        company_name = "sec-edgar-filings"
-        company_reports_dir = os.path.join(reports_dir, company_name, self.cik, report_folder_name)
+        self.company_reports_dir = company_reports_dir = os.path.join(reports_dir, company_name, self.cik, report_folder_name)
+
+        self._rate_limit()
+        dl = Downloader(company_name, "jaspeb97@zedat.fu-berlin.de", reports_dir)
+        dl.get(report_folder_name, self.cik, after=after_date)
 
         if not os.path.exists(company_reports_dir):
-            # Apply process-safe rate limiting to prevent overwhelming the SEC servers
-            self._rate_limit()
-            dl = Downloader(company_name, "jaspeb97@zedat.fu-berlin.de", reports_dir)
-            dl.get(report_folder_name, self.cik, after=after_date)
-
-        if not os.path.exists(company_reports_dir):
-            print(f"Directory not found: {company_reports_dir}")
+            self.logger.warning(f"Directory not found: {company_reports_dir}")
             return
 
         for folder in os.listdir(company_reports_dir):
@@ -37,10 +39,19 @@ class Company:
                 company_reports_dir, folder, "full-submission.txt"
             )
             if not os.path.exists(report_path):
-                print(f"File not found: {report_path}")
+                self.logger.warning(f"File not found: {report_path}")
                 continue
 
             self.report_paths.append(report_path)
+
+    def delete_reports(self):
+        """Delete all downloaded reports for this company."""
+        if self.company_reports_dir and os.path.exists(self.company_reports_dir):
+            try:
+                shutil.rmtree(self.company_reports_dir)
+                self.logger.info(f"Deleted reports for {self.name} ({self.cik})")
+            except Exception as e:
+                self.logger.error(f"Error deleting reports for {self.name} ({self.cik}): {e}")
 
     def _rate_limit(self):
         """Process-safe rate limiting using file locking."""
@@ -65,7 +76,7 @@ class Company:
                     
                     if time_since_last < Company._min_delay_between_downloads:
                         sleep_time = Company._min_delay_between_downloads - time_since_last
-                        print(f"Rate limiting: waiting {sleep_time:.2f} seconds before downloading for {self.name}")
+                        self.logger.info(f"Rate limiting: waiting {sleep_time:.2f} seconds before downloading for {self.name}")
                         time.sleep(sleep_time)
                     
                     # Update last download time
@@ -78,7 +89,7 @@ class Company:
                     fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
                     
         except Exception as e:
-            print(f"Warning: Rate limiting failed for {self.name}: {e}")
+            self.logger.warning(f"Rate limiting failed for {self.name}: {e}")
             # Continue without rate limiting if there's an issue
 
 
