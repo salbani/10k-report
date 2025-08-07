@@ -1,4 +1,5 @@
 .venv/
 output/
 sec-edgar-filings/
+sec-reports/
 .DS_Store
