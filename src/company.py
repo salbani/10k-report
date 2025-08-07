@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from sec_edgar_downloader import Downloader  # type: ignore
+from logger_config import get_logger
 
 report_folder_name = "10-K"
 company_name = "sec-edgar-filings"
@@ -21,7 +22,7 @@ class Company:
         self.name = name
         self.cik = cik
         self.report_paths: list[str] = []
-        self.logger = logging.getLogger("sec_analyzer")
+        self.logger = get_logger("sec_analyzer.company")
 
     def download_reports(self, reports_dir: str, after_date: str):
         self.company_reports_dir = company_reports_dir = os.path.join(reports_dir, company_name, self.cik, report_folder_name)

@@ -2,12 +2,13 @@ import os
 import pandas as pd
 import logging
 from company import Company
+from logger_config import get_logger
 
 
 class CompanyExtractor:
     def __init__(self, data_dir: str, sheet_name: str = "Unternehmensliste Masterarbeit Mai 2025.xlsx") -> None:
         self.sheet_path = os.path.join(data_dir, sheet_name)
-        self.logger = logging.getLogger("sec_analyzer")
+        self.logger = get_logger("sec_analyzer.extractor")
 
 
     def extract(self) -> list[Company]:

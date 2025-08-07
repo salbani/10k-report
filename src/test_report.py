@@ -15,11 +15,11 @@ logger = setup_logger(output_dir, log_level=logging.DEBUG)
 
 report_analyzer = ReportAnalyzer(data_dir, reports_dir, output_dir)
 
-company = Company("Test Company", "0000318154")
+company = Company("Test Company", "0000769397")
 company.download_reports(reports_dir, "2013-01-01")
 
 result = report_analyzer.analyze_report(
-    "/Users/simon/Workspace/10k-report/sec-reports/sec-edgar-filings/0000318154/10-K/0000318154-19-000008/full-submission.txt",
+    "/Users/simon/Workspace/10k-report/sec-reports/sec-edgar-filings/0000769397/10-K/0000769397-22-000019/full-submission.txt",
     True,
 )
 

@@ -3,3 +3,4 @@ output/
 sec-edgar-filings/
 sec-reports/
 .DS_Store
+__pycache__

@@ -1,4 +1,4 @@
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import html
 import json
 import os
@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 
 from company import Company
+from logger_config import get_logger
 
 
 class ReportAnalyzer:
@@ -15,7 +16,7 @@ class ReportAnalyzer:
         self.reports_dir = reports_dir
         self.output_dir = output_dir
         self.results: list[CompanyAnalyzeResults]
-        self.logger = logging.getLogger("sec_analyzer")
+        self.logger = get_logger("sec_analyzer.analyzer")
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -32,7 +33,7 @@ class ReportAnalyzer:
 
     def analyze(self, companies: list[Company]) -> list["CompanyAnalyzeResults"]:
         self.logger.info(f"Starting analysis of {len(companies)} companies")
-        with ProcessPoolExecutor() as executor:
+        with ThreadPoolExecutor() as executor:
             self.results = list(
                 filter(None, executor.map(self.analyze_company, companies))
             )
@@ -176,11 +177,10 @@ class ReportAnalyzer:
         
         if len(matches) == 0:
             return None
-        elif len(matches) <= 2:
-            return matches[-1]
-        else:
-            # If pattern found more than twice, use the last occurrence
-            return matches[-1]
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            return matches[1]
 
 
 class CompanyAnalyzeResults:
