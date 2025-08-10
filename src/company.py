@@ -1,12 +1,11 @@
+import fcntl
 import os
 import shutil
-import time
-import fcntl
 import tempfile
-import logging
-from typing import Any
+import time
 
 from sec_edgar_downloader import Downloader  # type: ignore
+
 from logger_config import get_logger
 
 report_folder_name = "10-K"
@@ -14,7 +13,7 @@ company_name = "sec-edgar-filings"
 
 class Company:
     # Process-safe rate limiting using file locking
-    _min_delay_between_downloads = 2.0  # Minimum seconds between downloads
+    _min_delay_between_downloads = 3.0
     _lock_file_path = os.path.join(tempfile.gettempdir(), "sec_download_lock.txt")
     
     def __init__(self, name: str, cik: str):
@@ -27,9 +26,11 @@ class Company:
     def download_reports(self, reports_dir: str, after_date: str):
         self.company_reports_dir = company_reports_dir = os.path.join(reports_dir, company_name, self.cik, report_folder_name)
 
+        self.logger.info(f"{self.name:<50}: Download started")
         self._rate_limit()
         dl = Downloader(company_name, "jaspeb97@zedat.fu-berlin.de", reports_dir)
         dl.get(report_folder_name, self.cik, after=after_date)
+        self.logger.info(f"{self.name:<50}: Download completed to {self.company_reports_dir}")
 
         if not os.path.exists(company_reports_dir):
             self.logger.warning(f"Directory not found: {company_reports_dir}")
@@ -77,7 +78,7 @@ class Company:
                     
                     if time_since_last < Company._min_delay_between_downloads:
                         sleep_time = Company._min_delay_between_downloads - time_since_last
-                        self.logger.info(f"Rate limiting: waiting {sleep_time:.2f} seconds before downloading for {self.name}")
+                        self.logger.debug(f"Rate limiting: waiting {sleep_time:.2f} seconds before downloading for {self.name}")
                         time.sleep(sleep_time)
                     
                     # Update last download time

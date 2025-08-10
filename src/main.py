@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 
 from company_extractor import CompanyExtractor
@@ -22,9 +21,6 @@ if __name__ == "__main__":
     
     extractor = CompanyExtractor(data_dir)
     companies = extractor.extract()
-
-    # filter first 3 companies for testing
-    # companies = companies[:3]
 
     analyzer = ReportAnalyzer(data_dir, reports_dir, output_dir)
     results = analyzer.analyze(companies)

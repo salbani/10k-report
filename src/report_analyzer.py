@@ -1,9 +1,9 @@
-from concurrent.futures import ThreadPoolExecutor
 import html
 import json
 import os
 import re
-import logging
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 
 from company import Company
@@ -43,19 +43,18 @@ class ReportAnalyzer:
 
     def _results_to_df(self) -> pd.DataFrame:
         all_results = []
-        all_results.sort(
-            key=lambda x: (x["Company Name"], x["Year"], x["Report ID"])
-        )
         for company_results in self.results:
+            company_results.results.sort(key=lambda x: x.year)
             for result in company_results.results:
                 entry = {
                     "Company Name": company_results.company.name,
                     "CIK": company_results.company.cik,
                     "Year": result.year,
                     "Accession number": result.accession_number,
+                    "Word Count": result.word_count,
                 }
                 entry.update(result.keyword_frequencies)
-                all_results.append(entry)
+                all_results.append(entry)    
 
         return pd.DataFrame(all_results)
 
@@ -72,23 +71,21 @@ class ReportAnalyzer:
         self.logger.info(f"Results saved to CSV: {csv_path}")
 
     def analyze_company(self, company: Company) -> "CompanyAnalyzeResults":
-        self.logger.info(f"Processing {company.name} ({company.cik})")
+        self.logger.info(f"{company.name:<50}: Processing ({company.cik})")
         company.download_reports(self.reports_dir, "2013-01-01")
 
         company_results = CompanyAnalyzeResults(company)
 
         for report_path in company.report_paths:
+            self.logger.info(f"{company.name:<50}: Report {report_path.split('/')[-2]} starting")
             try:
                 report_result = self.analyze_report(report_path)
-            except ValueError as e:
-                error_message = f"{company.name} Skipping report {report_path} due to error: {e}"
-                self.logger.error(error_message)
-                continue
             except Exception as e:
-                error_message = f"{company.name} Unexpected error processing {report_path}: {e}"
+                error_message = f"{company.name:<50}: Report {report_path.split('/')[-2]} skipped due to error: {e}"
                 self.logger.error(error_message)
                 continue
             company_results.add_report_result(report_result)
+            self.logger.info(f"{company.name:<50}: Report {report_path.split('/')[-2]} finished")
 
         company.delete_reports()
 
@@ -134,7 +131,7 @@ class ReportAnalyzer:
 
             matches = self.combined_pattern.findall(relevant_text)
             keyword_frequencies = {word: matches.count(word.lower()) for word in self.keywords}
-            word_count = len(re.findall(r"\w+([-]\w+)*", relevant_text))
+            word_count = len(re.findall(r"\w\w+", relevant_text))
 
             return ReportAnalyzeResult(year, accession_number, word_count, keyword_frequencies)
 

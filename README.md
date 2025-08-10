@@ -1,10 +1,12 @@
 # Project Title: SEC EDGAR Data Analysis
 
 ## Description
+
 This project analyzes SEC EDGAR 10-K filings for specific technology-related keywords and generates comprehensive results. The system downloads company filings, extracts the "Item 1: Description of Business" section, searches for predefined keywords, and saves detailed analysis results in both Excel and CSV formats.
 
 ## Project Structure
-```
+
+```txt
 requirements.txt
 data/
     keywords.json
@@ -72,19 +74,9 @@ src/
 - **Targeted Text Analysis**: Extracts and analyzes "Item 1: Description of Business" sections
 - **Technology Keyword Detection**: Searches for 80+ predefined technology-related keywords
 - **Multi-format Output**: Generates results in both Excel and CSV formats
-- **Error Handling**: Comprehensive error logging and graceful failure handling
+- **Extensive Logging and Error Handling**: Comprehensive logging and graceful failure handling
 - **Parallel Processing**: Utilizes multiprocessing for efficient company analysis
 - **Process-safe Rate Limiting**: Prevents overwhelming SEC servers with file-based locking
-
-## Keywords Analyzed
-
-The system searches for technology-related terms including:
-
-- AI and Machine Learning: "artificial intelligence", "AI", "algorithm", "machine learning"
-- Digital Technologies: "digital", "digitalization", "cloud computing", "blockchain"
-- Internet and Web: "internet", "online", "website", "e-commerce"
-- Mobile and IoT: "smartphone", "mobile", "internet of things", "IoT"
-- And many more (80+ keywords total)
 
 ## Dependencies
 
